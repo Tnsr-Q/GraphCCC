@@ -158,9 +158,10 @@ function parsePlot3D(line: string, state: ParserState, lineNumber: number) {
                 type: 'PLOT3D',
                 func: (x: number, y: number, n: number) => {
                     // Add 'n' to the evaluation context
-                    const result = usesN 
-                        ? securelyEvaluate(funcBody.body, { ...state.functions, X: x, Y: y, N: n })
-                        : func(x, y);
+                    const result = securelyEvaluate(
+                        funcBody.body,
+                        { ...state.functions, X: x, Y: y, N: n }
+                    );
                     return typeof result === 'number' && isFinite(result) ? result : 0;
                 },
                 funcHash,
