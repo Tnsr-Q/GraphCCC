@@ -152,7 +152,7 @@ function parsePlot3D(line: string, state: ParserState, lineNumber: number) {
             const funcHash = hashString(funcBody.body);
             
             // Check if function uses 'n' parameter
-            const usesN = /\bn\b/i.test(funcBody.body);
+            const usesN = /(^|[^A-Z0-9_])n([^A-Z0-9_]|$)/i.test(funcBody.body);
             
             state.commands.push({
                 type: 'PLOT3D',
