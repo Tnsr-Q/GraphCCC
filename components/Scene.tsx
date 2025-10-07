@@ -1,4 +1,3 @@
-
 import React, { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { G3D } from '../types';
@@ -10,9 +9,11 @@ interface SceneProps {
   nValue: number;
 }
 
-const Surface: React.FC<{ command: G3D.Plot3DCommand }> = ({ command }) => {
+const Surface: React.FC<{ command: G3D.Plot3DCommand; nValue: number }> = ({ command, nValue }) => {
   const meshRef = useRef<THREE.Mesh>(null!);
   
+  // Use funcHash for stable memoization identity
+  // Only regenerate when function body changes OR nValue changes (if function uses n)
   const geometry = useMemo(() => {
     const uMin = -1.5, uMax = 1.5, vMin = -1.5, vMax = 1.5;
     const slices = 50, stacks = 50;
@@ -20,18 +21,17 @@ const Surface: React.FC<{ command: G3D.Plot3DCommand }> = ({ command }) => {
     const surfaceFunction = (u: number, v: number, target: THREE.Vector3) => {
       const x = u * (uMax - uMin) + uMin;
       const y = v * (vMax - vMin) + vMin;
-      const z = command.func(x, y);
+      const z = command.func(x, y, nValue);
       target.set(x, y, z);
     };
 
     return new ParametricGeometry(surfaceFunction, slices, stacks);
-  }, [command.func]);
+  }, [command.funcHash, command.usesN ? nValue : null]); // Smart dependency
 
   useEffect(() => {
     // Cleanup function to dispose of geometry and material
     return () => {
       geometry.dispose();
-      // We can check if the material is an array or single, but here we know it's single
       const material = meshRef.current?.material as THREE.Material;
       if (material) {
         material.dispose();
@@ -94,7 +94,7 @@ const Trajectory: React.FC<{ points: G3D.Point[], color: G3D.Color }> = ({ point
 };
 
 
-export const Scene: React.FC<SceneProps> = ({ parsedScene }) => {
+export const Scene: React.FC<SceneProps> = ({ parsedScene, nValue }) => {
   const showGrid = useMemo(() => parsedScene.commands.some(c => c.type === 'SET_GRID' && c.visible), [parsedScene]);
   const showAxes = useMemo(() => parsedScene.commands.some(c => c.type === 'SET_AXES' && c.visible), [parsedScene]);
 
@@ -119,12 +119,11 @@ export const Scene: React.FC<SceneProps> = ({ parsedScene }) => {
       {parsedScene.commands.map((command, index) => {
         switch (command.type) {
           case 'PLOT3D':
-            return <Surface key={index} command={command} />;
+            return <Surface key={index} command={command} nValue={nValue} />;
           case 'CIRCLE3D':
             return <Circle3D key={index} command={command} />;
           case 'TEXT':
             return <TextLabel key={index} command={command} />;
-          // PLOT_POINT3D is handled by the Trajectory component below
           case 'PLOT_POINT3D':
             return null; 
           default:

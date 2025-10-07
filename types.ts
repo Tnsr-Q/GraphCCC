@@ -25,7 +25,9 @@ export namespace G3D {
   // Command Implementations
   export interface Plot3DCommand extends Command {
     type: 'PLOT3D';
-    func: (x: number, y: number) => number;
+    func: (x: number, y: number, n: number) => number;
+    funcHash: string; // Stable identity for memoization
+    usesN: boolean; // Whether function uses 'n' parameter
   }
 
   export interface Circle3DCommand extends Command {

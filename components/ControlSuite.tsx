@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useCallback, MutableRefObject } from 'react';
 import type { Scene, Camera } from 'three';
 import { exportSceneToSVG } from '../lib/svgExport';
@@ -53,7 +52,7 @@ export const ControlSuite: React.FC<ControlSuiteProps> = ({
         console.error("Canvas element not found for recording.");
         return;
     }
-    const stream = canvas.captureStream(30); // 30 FPS
+    const stream = canvas.captureStream(30);
     mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
     
     mediaRecorderRef.current.ondataavailable = (event) => {
@@ -124,11 +123,11 @@ export const ControlSuite: React.FC<ControlSuiteProps> = ({
       </div>
 
       <div className="bg-base-300 p-4 rounded-lg space-y-4">
-        <h2 className="font-semibold text-base-content/80">Real-time Controls</h2>
+        <h2 className="font-semibold text-base-content/80">Dynamic Parameter</h2>
         <div>
-          <label htmlFor="n-slider" className="text-sm flex justify-between">
-            <span>Parameter 'n'</span>
-            <span>{nValue.toFixed(2)}</span>
+          <label htmlFor="n-slider" className="text-sm flex justify-between mb-2">
+            <span>Slider 'n' <span className="text-xs text-base-content/60">(use in functions!)</span></span>
+            <span className="font-mono text-primary">{nValue.toFixed(2)}</span>
           </label>
           <input
             id="n-slider"
@@ -141,6 +140,9 @@ export const ControlSuite: React.FC<ControlSuiteProps> = ({
             className="w-full h-2 bg-base-100 rounded-lg appearance-none cursor-pointer"
             disabled={!isRunning}
           />
+          <p className="text-xs text-base-content/60 mt-2">
+            Tip: Use 'n' in your function definitions (e.g., <code className="text-accent">FNZ(X,Y) = n*X^2</code>)
+          </p>
         </div>
       </div>
 
