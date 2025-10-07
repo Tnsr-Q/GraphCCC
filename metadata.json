@@ -1,0 +1,5 @@
+{
+  "name": "GraphForge Core: G3D-BASIC Visualizer",
+  "description": "A client-side web application to parse G3D-BASIC files, a custom graphing language with CCC extensions, and render interactive 3D visualizations. Features real-time controls and export to SVG and video formats.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,16 @@
+{
+  "name": "GraphForge Core: G3D-BASIC Visualizer",
+  "short_name": "GraphForge",
+  "description": "A client-side web application to parse G3D-BASIC files, a custom graphing language with CCC extensions, and render interactive 3D visualizations. Features real-time controls and export to SVG and video formats.",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#1d232a",
+  "background_color": "#1d232a"
+}
