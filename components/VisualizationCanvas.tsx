@@ -1,4 +1,3 @@
-
 import React, { useMemo, useEffect } from 'react';
 import type { MutableRefObject } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
@@ -55,12 +54,6 @@ export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({ parsed
           camera={{ fov: 75 }}
           onCreated={({ scene, camera }) => {
             sceneRef.current = { scene, camera };
-            // Ensure camera is available on first render for export
-            setTimeout(() => {
-              if (sceneRef.current) {
-                sceneRef.current.camera = camera;
-              }
-            }, 0);
           }}
         >
           <CameraController viewCommand={viewCommand} />

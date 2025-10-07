@@ -1,16 +1,19 @@
-
 import { G3D } from '../types';
 
-// A whitelist of allowed characters in a mathematical expression.
-// This prevents injection of arbitrary JS code that uses characters outside of this set.
-const SAFE_EXPRESSION_REGEX = /^[a-zA-Z0-9\s\+\-\*\/\^\(\)\.,_'"\<\>\=\&\|!\?:]+$/;
+// Security: whitelist of allowed characters in expressions
+const SAFE_EXPRESSION_REGEX = /^[\p{L}\p{N}\s\+\-\*\/\^\(\)\.,_'"\<\>\=\&\|!\?:\/\[\]\u00B2\u00B3\u2070-\u209F]+$/u;
 
-// A list of forbidden keywords to prevent access to global scope or dangerous functions.
+// Security: forbidden keywords to prevent scope access
 const FORBIDDEN_KEYWORDS = [
     'window', 'document', 'alert', 'eval', 'function',
     'constructor', 'prototype', '__proto__', 'import', 'export',
     'this', 'self', ';', '{', '}', '=>', '`'
 ];
+
+// Performance: prevent infinite loops from freezing browser
+const MAX_LOOP_ITERATIONS = 10000;
+const MAX_SCRIPT_SIZE = 50000;
+const MAX_EXPR_LENGTH = 60;
 
 class ParserState {
     functions: Record<string, Function | number> = {
@@ -21,7 +24,7 @@ class ParserState {
         EXP: Math.exp, LOG: Math.log, LOG10: Math.log10,
         CEIL: Math.ceil, FLOOR: Math.floor, ROUND: Math.round,
         MIN: Math.min, MAX: Math.max,
-        STR: (v: any) => v.toFixed(2), // Format numbers for labels
+        STR: (v: any) => v.toFixed(2),
         INT: Math.trunc,
         PI: Math.PI,
         E: Math.E,
@@ -62,19 +65,21 @@ function securelyEvaluate(expr: string, context: Record<string, any>): any {
     try {
         const evaluator = new Function(...contextNames, `return ${jsExpr}`);
         const result = evaluator(...contextValues);
-        // Default to 0 for results that are not finite numbers, unless it's a boolean from a condition
         if (typeof result === 'number' && !isFinite(result)) {
             return 0;
         }
         return result;
     } catch (e: any) {
-        // Make error more specific
+        // Better error messages with truncation
         let message = e.message;
         const match = message.match(/(\w+)\s+is not defined/);
         if (match) {
             message = `${match[1]} is not defined`;
         }
-        throw new Error(`Failed to evaluate expression "${expr}": ${message}`);
+        const displayExpr = expr.length > MAX_EXPR_LENGTH 
+            ? expr.substring(0, MAX_EXPR_LENGTH) + '...' 
+            : expr;
+        throw new Error(`Failed to evaluate: "${displayExpr}" - ${message}`);
     }
 }
 
@@ -273,9 +278,7 @@ function processLine(line: string, lineNumber: number, state: ParserState, scope
         parseText(line, state, lineNumber, scope);
     } else if (command === 'PLOT') {
         if (commandParts[1] === 'POINT3D') parsePlotPoint3D(line, state, lineNumber, scope);
-        // Add other PLOT variants here
     } else if (command.toUpperCase() === 'G_VALUE') {
-        // Handle variable assignment
         const match = line.match(/G_VALUE\s*=\s*(.*)/i);
         if(match) {
             try {
@@ -285,22 +288,20 @@ function processLine(line: string, lineNumber: number, state: ParserState, scope
             }
         }
     }
-    // Ignore unimplemented commands silently for now
 }
 
 export function parseG3D(script: string): G3D.Scene {
-    if (script.length > 50000) {
-        return { commands: [], errors: [{ line: 1, message: "Script too large. Maximum size is 50,000 characters." }] };
+    if (script.length > MAX_SCRIPT_SIZE) {
+        return { commands: [], errors: [{ line: 1, message: `Script too large. Maximum size is ${MAX_SCRIPT_SIZE} characters.` }] };
     }
     const state = new ParserState();
     const lines = script.split('\n').map((content, index) => ({ content, number: index + 1 }));
 
-    // Main parsing loop
     for (let i = 0; i < lines.length; i++) {
         const { content: originalLine, number: originalLineNumber } = lines[i];
 
-        let line = originalLine.split(';')[0].trim(); // Remove comments and trim
-        line = line.replace(/^(\d+)\s+/, ''); // Remove leading line number
+        let line = originalLine.split(';')[0].trim();
+        line = line.replace(/^(\d+)\s+/, '');
 
         if (!line || line.toUpperCase().startsWith('REM')) continue;
         
@@ -311,7 +312,6 @@ export function parseG3D(script: string): G3D.Scene {
                 if (loop) {
                     const bodyLines: { content: string, number: number }[] = [];
                     let nextIndex = -1;
-                    // Find loop body
                     for (let j = i + 1; j < lines.length; j++) {
                         let innerLine = lines[j].content.split(';')[0].trim();
                         innerLine = innerLine.replace(/^(\d+)\s+/, '');
@@ -322,8 +322,17 @@ export function parseG3D(script: string): G3D.Scene {
                         bodyLines.push({ content: innerLine, number: lines[j].number });
                     }
                     if (nextIndex !== -1) {
-                         // Execute loop
+                        // CRITICAL: Loop iteration limit to prevent DOS
+                        let iterations = 0;
                         for (let val = loop.start; val <= loop.end; val += loop.step) {
+                            if (++iterations > MAX_LOOP_ITERATIONS) {
+                                state.addError(originalLineNumber, 
+                                    `FOR loop exceeded ${MAX_LOOP_ITERATIONS} iterations. ` +
+                                    `Current: ${loop.variable}=${val.toFixed(4)}, ` +
+                                    `Range: ${loop.start} to ${loop.end}, Step: ${loop.step}`
+                                );
+                                break;
+                            }
                             const loopScope = { [loop.variable]: val };
                             for (const bodyLine of bodyLines) {
                                 if (bodyLine.content) {
@@ -331,7 +340,7 @@ export function parseG3D(script: string): G3D.Scene {
                                 }
                             }
                         }
-                        i = nextIndex; // Skip to after the loop
+                        i = nextIndex;
                     } else {
                         state.addError(originalLineNumber, `Missing NEXT ${loop.variable}`);
                     }
@@ -341,7 +350,6 @@ export function parseG3D(script: string): G3D.Scene {
                 if (subCommand === 'VIEW') parseSetView(line, state, originalLineNumber);
                 else if (subCommand === 'GRID') parseSetGrid(line, state, originalLineNumber);
                 else if (subCommand === 'AXES') parseSetAxes(line, state, originalLineNumber);
-                // Ignore other SET commands
             }
             else {
                 processLine(line, originalLineNumber, state);
