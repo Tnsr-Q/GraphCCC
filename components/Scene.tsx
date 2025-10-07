@@ -26,7 +26,7 @@ const Surface: React.FC<{ command: G3D.Plot3DCommand; nValue: number }> = ({ com
     };
 
     return new ParametricGeometry(surfaceFunction, slices, stacks);
-  }, [command.funcHash, command.usesN ? nValue : null]); // Smart dependency
+  }, [command.funcHash, command.usesN ? nValue : 0]); // Smart dependency
 
   useEffect(() => {
     // Cleanup function to dispose of geometry and material
