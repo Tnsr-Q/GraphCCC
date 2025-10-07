@@ -1,46 +1,69 @@
-import React, { useMemo } from 'react';
+
+import React, { useMemo, useEffect } from 'react';
 import type { MutableRefObject } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { Scene } from './Scene';
 import type { G3D } from '../types';
-import type { Scene as ThreeScene } from 'three';
+import type { Scene as ThreeScene, Camera } from 'three';
 import * as THREE from 'three';
 
 interface VisualizationCanvasProps {
   parsedScene: G3D.Scene | null;
   nValue: number;
-  sceneRef: MutableRefObject<ThreeScene | null>;
+  sceneRef: MutableRefObject<{ scene: ThreeScene; camera: Camera; } | null>;
   isRunning: boolean;
 }
 
-export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({ parsedScene, nValue, sceneRef, isRunning }) => {
-  
-  const cameraPosition = useMemo(() => {
-    const viewCommand = parsedScene?.commands.find(c => c.type === 'SET_VIEW') as G3D.SetViewCommand | undefined;
+const CameraController = ({ viewCommand }: { viewCommand?: G3D.SetViewCommand }) => {
+  const { camera } = useThree();
+
+  useEffect(() => {
     if (viewCommand) {
       const { azimuth, elevation } = viewCommand;
-      const radius = 10; // Default radius from camera to origin
+      const radius = 10;
       const phi = THREE.MathUtils.degToRad(90 - elevation);
       const theta = THREE.MathUtils.degToRad(azimuth);
-
-      return new THREE.Vector3(
+      
+      camera.position.set(
         radius * Math.sin(phi) * Math.cos(theta),
         radius * Math.cos(phi),
         radius * Math.sin(phi) * Math.sin(theta)
       );
+      camera.lookAt(0, 0, 0);
+    } else {
+        camera.position.set(5, 5, 5);
+        camera.lookAt(0, 0, 0);
     }
-    return new THREE.Vector3(5, 5, 5); // Default position
-  }, [parsedScene]);
+    camera.updateProjectionMatrix();
+  }, [camera, viewCommand]);
+
+  return null;
+};
+
+
+export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({ parsedScene, nValue, sceneRef, isRunning }) => {
+  
+  const viewCommand = useMemo(() => 
+    parsedScene?.commands.find(c => c.type === 'SET_VIEW') as G3D.SetViewCommand | undefined,
+    [parsedScene]
+  );
   
   return (
     <main className="flex-grow h-full bg-base-100">
       {isRunning && parsedScene ? (
         <Canvas 
-          camera={{ position: cameraPosition, fov: 75 }}
-          onCreated={({ scene }) => {
-            sceneRef.current = scene;
+          camera={{ fov: 75 }}
+          onCreated={({ scene, camera }) => {
+            sceneRef.current = { scene, camera };
+            // Ensure camera is available on first render for export
+            setTimeout(() => {
+              if (sceneRef.current) {
+                sceneRef.current.camera = camera;
+              }
+            }, 0);
           }}
         >
+          <CameraController viewCommand={viewCommand} />
           <Scene parsedScene={parsedScene} nValue={nValue} />
         </Canvas>
       ) : (

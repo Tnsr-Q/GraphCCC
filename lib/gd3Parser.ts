@@ -1,9 +1,9 @@
-
 import { G3D } from '../types';
 
 // A whitelist of allowed characters in a mathematical expression.
 // This prevents injection of arbitrary JS code that uses characters outside of this set.
-const SAFE_EXPRESSION_REGEX = /^[a-zA-Z0-9\s\+\-\*\/\^\(\)\.,_'"\<\>\=\&\|!\?:]+$/;
+// Now supports unicode letters (\p{L}), square brackets, division, and superscript 2.
+const SAFE_EXPRESSION_REGEX = /^[\p{L}0-9\s\+\-\*\/\^\(\)\.,_'"\<\>\=\&\|!\?:\/\[\]\u00B2]+$/u;
 
 // A list of forbidden keywords to prevent access to global scope or dangerous functions.
 const FORBIDDEN_KEYWORDS = [

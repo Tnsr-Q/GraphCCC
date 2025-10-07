@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+
+import React, { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { G3D } from '../types';
 import { OrbitControls, Text, Line, Points, Point } from '@react-three/drei';
@@ -10,8 +11,9 @@ interface SceneProps {
 }
 
 const Surface: React.FC<{ command: G3D.Plot3DCommand }> = ({ command }) => {
+  const meshRef = useRef<THREE.Mesh>(null!);
+  
   const geometry = useMemo(() => {
-    // Define the range and resolution for the surface
     const uMin = -1.5, uMax = 1.5, vMin = -1.5, vMax = 1.5;
     const slices = 50, stacks = 50;
     
@@ -25,8 +27,20 @@ const Surface: React.FC<{ command: G3D.Plot3DCommand }> = ({ command }) => {
     return new ParametricGeometry(surfaceFunction, slices, stacks);
   }, [command.func]);
 
+  useEffect(() => {
+    // Cleanup function to dispose of geometry and material
+    return () => {
+      geometry.dispose();
+      // We can check if the material is an array or single, but here we know it's single
+      const material = meshRef.current?.material as THREE.Material;
+      if (material) {
+        material.dispose();
+      }
+    };
+  }, [geometry]);
+
   return (
-    <mesh geometry={geometry}>
+    <mesh ref={meshRef} geometry={geometry}>
       <meshStandardMaterial color="#3abff8" side={THREE.DoubleSide} wireframe={false} />
     </mesh>
   );

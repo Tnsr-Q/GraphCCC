@@ -1,11 +1,11 @@
 
-import React, { useState, useRef, useCallback } from 'react';
-import type { Scene as ThreeScene } from 'three';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import type { Scene as ThreeScene, Camera } from 'three';
 import { ControlSuite } from './components/ControlSuite';
 import { VisualizationCanvas } from './components/VisualizationCanvas';
-// FIX: Correct the import to be a relative path.
 import { parseG3D } from './lib/g3dParser';
 import type { G3D } from './types';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const defaultScript = `10 REM BLACK HOLE POTENTIAL - CCC SPECTRAL TOPOLOGY
 20 REM Multi-pole resolvent landscape
@@ -85,12 +85,26 @@ const defaultScript = `10 REM BLACK HOLE POTENTIAL - CCC SPECTRAL TOPOLOGY
 `;
 
 function App() {
-  const [script, setScript] = useState(defaultScript);
+  const [script, setScript] = useState(() => {
+    try {
+      return localStorage.getItem('g3d-script') || defaultScript;
+    } catch {
+      return defaultScript;
+    }
+  });
   const [nValue, setNValue] = useState(0.5);
   const [isRunning, setIsRunning] = useState(false);
   const [errors, setErrors] = useState<G3D.G3DError[] | null>(null);
   const [parsedScene, setParsedScene] = useState<G3D.Scene | null>(null);
-  const sceneRef = useRef<ThreeScene | null>(null);
+  const sceneRef = useRef<{ scene: ThreeScene; camera: Camera } | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('g3d-script', script);
+    } catch (e) {
+      console.error("Failed to save script to localStorage", e);
+    }
+  }, [script]);
 
   const handleParseAndRun = useCallback(() => {
     setErrors(null);
@@ -117,12 +131,14 @@ function App() {
         sceneRef={sceneRef}
         errors={errors}
       />
-      <VisualizationCanvas
-        parsedScene={parsedScene}
-        nValue={nValue}
-        sceneRef={sceneRef}
-        isRunning={isRunning}
-      />
+      <ErrorBoundary>
+        <VisualizationCanvas
+          parsedScene={parsedScene}
+          nValue={nValue}
+          sceneRef={sceneRef}
+          isRunning={isRunning}
+        />
+      </ErrorBoundary>
     </div>
   );
 }

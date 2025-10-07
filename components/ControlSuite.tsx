@@ -1,5 +1,6 @@
+
 import React, { useRef, useState, useCallback, MutableRefObject } from 'react';
-import type { Scene } from 'three';
+import type { Scene, Camera } from 'three';
 import { exportSceneToSVG } from '../lib/svgExport';
 import type { G3D } from '../types';
 
@@ -10,7 +11,7 @@ interface ControlSuiteProps {
   setNValue: (value: number) => void;
   onParseAndRun: () => void;
   isRunning: boolean;
-  sceneRef: MutableRefObject<Scene | null>;
+  sceneRef: MutableRefObject<{ scene: Scene; camera: Camera; } | null>;
   errors: G3D.G3DError[] | null;
 }
 
@@ -39,17 +40,10 @@ export const ControlSuite: React.FC<ControlSuiteProps> = ({
   const recordedChunksRef = useRef<Blob[]>([]);
 
   const handleSvgExport = useCallback(() => {
-    const canvas = document.querySelector('canvas');
-    if (sceneRef.current && canvas) {
-      // @ts-ignore r3f attaches renderer state to canvas
-      const camera = canvas.__r3f.camera;
-      if (camera) {
-        exportSceneToSVG(sceneRef.current, camera);
-      } else {
-        console.error("Could not find camera for SVG export.");
-      }
+    if (sceneRef.current) {
+      exportSceneToSVG(sceneRef.current.scene, sceneRef.current.camera);
     } else {
-      console.error("Scene or canvas not available for SVG export.");
+      console.error("Scene or camera not available for SVG export.");
     }
   }, [sceneRef]);
 
