@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Scene as ThreeScene, Camera } from 'three';
 import { ControlSuite } from './components/ControlSuite';
@@ -7,81 +6,48 @@ import { parseG3D } from './lib/g3dParser';
 import type { G3D } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-const defaultScript = `10 REM BLACK HOLE POTENTIAL - CCC SPECTRAL TOPOLOGY
-20 REM Multi-pole resolvent landscape
-30 REM Based on Theorem B.5: Phi(x,y) = sum |R_alpha|/|lambda-lambda_alpha|^2
+const defaultScript = `10 REM DYNAMIC SURFACE - MORPHING WITH 'N' PARAMETER
+20 REM Demonstrates dynamic visualization using the n slider
+30 REM n=0: minimal peaks, n=1: maximum intensity
 
 40 SET RANGE X -1.5 TO 1.5
 50 SET RANGE Y -1.5 TO 1.5  
 60 SET RANGE Z 0 TO 50
 
-70 REM Define the 5-pole black hole potential
-80 DEF FNZ(X,Y) = 1.5/((X-0.9)^2+(Y-0.3)^2+0.05)
-90 FNZ = FNZ + 2/((X-0.3)^2+(Y-0.9)^2+0.05)
-100 FNZ = FNZ + 1.2/((X+0.6)^2+(Y-0.7)^2+0.05)
-110 FNZ = FNZ + 1.8/((X+0.8)^2+(Y+0.5)^2+0.05)
-120 FNZ = FNZ + 1.6/((X-0.5)^2+(Y+0.8)^2+0.05)
+70 REM Define dynamic function with 'n' parameter
+80 REM The surface morphs as you move the slider!
+90 DEF FNZ(X,Y) = (1+n*2)/((X-0.9)^2+(Y-0.3)^2+0.05)
+100 FNZ = FNZ + (1.5+n*1.5)/((X-0.3)^2+(Y-0.9)^2+0.05)
+110 FNZ = FNZ + (0.8+n*0.8)/((X+0.6)^2+(Y-0.7)^2+0.05)
+120 FNZ = FNZ + (1.2+n*1.2)/((X+0.8)^2+(Y+0.5)^2+0.05)
+130 FNZ = FNZ + (1.0+n*1.0)/((X-0.5)^2+(Y+0.8)^2+0.05)
 
-130 REM 3D Surface plot with enhanced features
-140 PLOT3D FNZ(X,Y)
+140 REM 3D Surface plot
+150 PLOT3D FNZ(X,Y)
 
-150 REM Color mapping by Chern number regions
-160 COLOR MAP CUSTOM
-170 REM Blue: C=0, Red: C=1, Green: C=-1
-180 COLOR 0,0,255 FOR Z < 10    ; Basin regions
-190 COLOR 255,0,0 FOR Z > 30 AND (X-0.9)^2+(Y-0.3)^2 < 0.2  ; Peak 1 - Chern 1
-200 COLOR 0,255,0 FOR Z > 25 AND (X-0.3)^2+(Y-0.9)^2 < 0.2  ; Peak 2 - Chern -1
-210 COLOR 255,0,0 FOR Z > 20 AND (X+0.8)^2+(Y+0.5)^2 < 0.2  ; Peak 3 - Chern 1
+160 REM Wilson loops around peaks
+170 CIRCLE3D 0.9,0.3,5 WITH RADIUS 0.3 COLOR 255,255,0
+180 CIRCLE3D 0.3,0.9,5 WITH RADIUS 0.3 COLOR 255,255,0
+190 CIRCLE3D -0.8,-0.5,5 WITH RADIUS 0.3 COLOR 255,255,0
 
-220 REM Draw Wilson loops around peaks (Berry phase integration paths)
-230 CIRCLE3D 0.9,0.3,5 WITH RADIUS 0.3 COLOR 255,255,0  ; Yellow loop
-240 CIRCLE3D 0.3,0.9,5 WITH RADIUS 0.3 COLOR 255,255,0
-250 CIRCLE3D -0.8,-0.5,5 WITH RADIUS 0.3 COLOR 255,255,0
+200 REM Animate trajectory through parameter space
+210 DEF FNX(T) = 1.2*SIN(2*PI*T)
+220 DEF FNY(T) = 1.2*COS(2*PI*T)  
+230 DEF FNZT(T) = FNZ(FNX(T),FNY(T)) + 0.5
 
-260 REM Animate experimental trajectory through parameter space
-270 DEF FNX(T) = 1.2*SIN(2*PI*T)  ; JT parameter 1
-280 DEF FNY(T) = 1.2*COS(2*PI*T)  ; JT parameter 2  
-290 DEF FNZT(T) = FNZ(FNX(T),FNY(T)) + 0.5
+240 FOR T = 0 TO 1 STEP 0.02
+250   PLOT POINT3D FNX(T), FNY(T), FNZT(T) COLOR 255,0,255 SIZE 8
+260 NEXT T
 
-300 FOR T = 0 TO 1 STEP 0.01
-310   PLOT POINT3D FNX(T), FNY(T), FNZT(T) COLOR 255,0,255 SIZE 8
-320   LABEL AT FNX(T), FNY(T), FNZT(T)+2 TEXT "JT="+STR(T)
-330 NEXT T
+270 REM Information panel
+280 TEXT AT -1.4, -1.4, 45 "DYNAMIC MORPHING SURFACE"
+290 TEXT AT -1.4, -1.3, 43 "Move slider to morph!"
 
-340 REM Add contour lines at critical potential values
-350 CONTOUR FNZ(X,Y) AT LEVELS 10,20,30,40
+300 SET VIEW ANGLE 45, 30
+310 SET GRID ON
+320 SET AXES ON
 
-360 REM Information panels for each exceptional point
-370 TEXT AT -1.4, -1.4, 45 "BLACK HOLE RESOLVENT LANDSCAPE"
-380 TEXT AT -1.4, -1.3, 43 "Theorem B.5: Φ(λ) = Σ|R_α|/|λ-λ_α|²"
-
-390 REM Peak annotations with topological data
-400 TEXT AT 0.9, 0.3, 35 "EP1: C=1, η=+1"
-410 TEXT AT 0.3, 0.9, 30 "EP2: C=-1, η=-1" 
-420 TEXT AT -0.8, -0.5, 25 "EP3: C=1, η=+1"
-430 TEXT AT -0.6, 0.7, 20 "EP4: C=0, η=+1"
-440 TEXT AT 0.5, -0.8, 22 "EP5: C=0, η=+1"
-
-450 REM Measurement outcome basins (Voronoi regions)
-460 FILL POLYGON -1.5,-1.5,0 TO 0,0,0 TO -1.5,1.5,0 COLOR 100,100,255,128
-470 FILL POLYGON 1.5,-1.5,0 TO 0,0,0 TO 1.5,1.5,0 COLOR 255,100,100,128
-
-480 SET VIEW ANGLE 45, 30
-490 SET GRID ON
-500 SET AXES ON
-
-510 REM Real-time resolvent trace display along trajectory
-520 TEXT AT 1.0, -1.4, 40 "G(JT) = Tr[(I-E)^-1]"
-530 FOR T = 0 TO 1 STEP 0.1
-540   G_VALUE = FNZ(FNX(T),FNY(T))
-550   TEXT AT FNX(T), FNY(T)-0.2, FNZT(T)+1 "G="+STR(INT(G_VALUE))
-560 NEXT T
-
-570 REM Critical exponent visualization
-580 PLOT FUNCTION X, 40*(ABS(X-0.9))^(-0.5) FOR X = 0.5 TO 1.3 COLOR 0,255,255
-590 TEXT AT 1.0, 1.4, 38 "ν=0.5 critical scaling"
-
-600 END
+330 END
 `;
 
 function App() {
@@ -112,7 +78,7 @@ function App() {
     if (result.errors && result.errors.length > 0) {
       setErrors(result.errors);
       setIsRunning(false);
-      setParsedScene({ commands: [] }); // Clear scene on error
+      setParsedScene({ commands: [] });
     } else {
       setParsedScene(result);
       setIsRunning(true);

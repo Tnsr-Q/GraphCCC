@@ -15,6 +15,20 @@ const MAX_LOOP_ITERATIONS = 10000;
 const MAX_SCRIPT_SIZE = 50000;
 const MAX_EXPR_LENGTH = 60;
 
+/**
+ * Simple string hash function for function body identity
+ * Based on Java's String.hashCode() algorithm
+ */
+function hashString(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36);
+}
+
 class ParserState {
     functions: Record<string, Function | number> = {
         SIN: Math.sin, COS: Math.cos, TAN: Math.tan,
@@ -131,13 +145,27 @@ function parsePlot3D(line: string, state: ParserState, lineNumber: number) {
     if (match) {
         const funcName = match[1].toUpperCase();
         const func = state.functions[funcName];
-        if (typeof func === 'function') {
+        const funcBody = state.functionBodies[funcName];
+        
+        if (typeof func === 'function' && funcBody) {
+            // Hash the function body for stable identity
+            const funcHash = hashString(funcBody.body);
+            
+            // Check if function uses 'n' parameter
+            const usesN = /(^|[^A-Z0-9_])n([^A-Z0-9_]|$)/i.test(funcBody.body);
+            
             state.commands.push({
                 type: 'PLOT3D',
-                func: (x: number, y: number) => {
-                    const result = func(x, y);
+                func: (x: number, y: number, n: number) => {
+                    // Add 'n' to the evaluation context
+                    const result = securelyEvaluate(
+                        funcBody.body,
+                        { ...state.functions, X: x, Y: y, N: n }
+                    );
                     return typeof result === 'number' && isFinite(result) ? result : 0;
                 },
+                funcHash,
+                usesN,
                 line: lineNumber,
             });
         } else {
