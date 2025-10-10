@@ -1,4 +1,4 @@
-const CACHE_NAME = 'graphforge-core-v1';
+const CACHE_NAME = 'graphforge-core-v2';
 const urlsToCache = [
   // App Shell
   '/',
@@ -16,13 +16,7 @@ const urlsToCache = [
   '/metadata.json',
   
   // External Dependencies from CDN
-  'https://cdn.tailwindcss.com',
-  'https://aistudiocdn.com/react@^19.2.0',
-  'https://aistudiocdn.com/react-dom@^19.2.0',
-  'https://aistudiocdn.com/three@^0.180.0',
-  'https://aistudiocdn.com/@react-three/fiber@^9.3.0',
-  'https://aistudiocdn.com/@react-three/drei@^10.7.6',
-  'https://aistudiocdn.com/three@^0.180.0/examples/jsm/renderers/SVGRenderer.js'
+  'https://cdn.tailwindcss.com'
 ];
 
 self.addEventListener('install', event => {
@@ -48,7 +42,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
   // For CDN assets, use a cache-first strategy.
-  if (url.hostname.includes('aistudiocdn.com') || url.hostname.includes('tailwindcss.com')) {
+  if (url.hostname === 'cdn.tailwindcss.com') {
     event.respondWith(
       caches.match(event.request)
         .then(response => {
