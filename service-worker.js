@@ -42,7 +42,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
   // For CDN assets, use a cache-first strategy.
-  if (url.hostname.includes('tailwindcss.com')) {
+  if (url.hostname === 'cdn.tailwindcss.com') {
     event.respondWith(
       caches.match(event.request)
         .then(response => {
